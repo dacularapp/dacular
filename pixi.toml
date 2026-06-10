@@ -1,0 +1,21 @@
+[workspace]
+name = "dacular"
+version = "0.1.0"
+authors = ["Marius S <marius@seritan.net>"]
+description = "Personal data vault — ask open-ended questions about your CSV/PDF/Markdown files locally, built on the headgate privacy harness."
+# Org nightly — matches headgate/flare/lancedb.mojo so cross-repo `-I` resolves
+# against the same toolchain.
+channels = [
+    "https://conda.modular.com/max-nightly",
+    "conda-forge",
+]
+platforms = ["osx-arm64"]
+
+[dependencies]
+mojo = "==1.0.0b2.dev2026060706"
+
+[tasks]
+# Print the aliased manifest for a vault directory — the sanitized view the
+# frontier model is allowed to see (aliases + kinds + csv schema, no contents).
+manifest = "mkdir -p build && mojo build src/dacular.mojo -o build/dacular && ./build/dacular manifest"
+build = "mkdir -p build && mojo build src/dacular.mojo -o build/dacular"
