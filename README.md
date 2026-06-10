@@ -12,7 +12,7 @@ dacular is the **vault application**. It builds on the
 [headgate](https://github.com/millrace/headgate) privacy harness and the millrace
 toolbox: [lancedb.mojo](https://github.com/millrace/lancedb.mojo) for the on-device
 vector index, [pdftotext.mojo](https://github.com/millrace/pdftotext.mojo) for PDF
-extraction, and the local [inference server](https://github.com/millrace/mojo-backend)
+extraction, and the local [inference server](https://github.com/millrace/inference-server)
 as the trusted on-device reader.
 
 ## How the privacy model works
