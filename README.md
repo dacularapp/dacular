@@ -60,12 +60,37 @@ question ─▶ headgate: frontier writes a vault program │ (sees only aliases
 
 ## Status
 
-Early scaffold. Building outward from the manifest (the confidentiality boundary)
-→ readers → indexer (LanceDB) → the `vault` tool library → the headgate-driven
-`ask` loop.
+Vault data plane is wired: the **manifest** (confidentiality boundary), the three
+**readers** (CSV/PDF/Markdown), the **embedding client** + **LanceDB indexer/search**,
+and the **`vault` tool library** that headgate-generated programs import. Still to
+come: the headgate-driven `ask` loop on top.
 
-## Use (so far)
+What's verified vs. pending a live server:
+- ✅ readers, manifest, chunking, LanceDB wiring, and the `vault` tool surface all
+  compile and run (PDF text extraction verified on a real PDF).
+- ⏳ `embed`, `index`, and `search` need the local **inference-server** embeddings
+  endpoint (`/v1/embeddings`, Qwen3-Embedding-0.6B, dim 1024) live; until then they
+  fail with a clear "endpoint not serving" message. `ask_local` likewise needs the
+  local chat-completions endpoint.
+
+## Use
 
 ```sh
-pixi run manifest -- ~/dacular            # print the aliased manifest for a vault dir
+pixi run ffi                              # build the native shims (zlib/flare/lancedb)
+pixi run build                            # compile the dacular CLI (runs ffi first)
+
+dacular manifest <vault-dir>              # aliased manifest (frontier-visible view)
+dacular read <file_N> <vault-dir>         # smoke-test a reader (csv/pdf/md preview)
+dacular embed "<text>"                    # smoke-test the embedding client*
+dacular index <vault-dir>                 # chunk+embed the vault into LanceDB*
+dacular search "<query>" [k]              # semantic search over the index*
+
+#  * needs the local inference-server running (embeddings/chat endpoints)
 ```
+
+The index lives under `~/.config/dacular/` (`index.db` + `chunks.tsv` side-table).
+Local model URLs are configurable via `DACULAR_LOCAL_URL` (default
+`http://127.0.0.1:8000/v1`) and `DACULAR_VAULT` (default `~/dacular`).
+
+There are also `pixi run smoke-readers` / `smoke-embed` / `smoke-index` /
+`build-vault` tasks that exercise each layer against a throwaway vault.
