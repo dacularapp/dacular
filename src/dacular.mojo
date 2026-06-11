@@ -91,7 +91,15 @@ def _default_dir() raises -> String:
 
 
 def _local_url() raises -> String:
+    """CHAT endpoint (default :8000)."""
     return getenv("DACULAR_LOCAL_URL", "http://127.0.0.1:8000/v1")
+
+
+def _embed_url() raises -> String:
+    """EMBEDDINGS endpoint (default :8001). `index` + `search` + `embed` use
+    this — they need the embedding model, which a separate inference-server
+    serves on its own port. Mirrors vault._embed_url()."""
+    return getenv("DACULAR_EMBED_URL", "http://127.0.0.1:8001/v1")
 
 
 def main() raises:
@@ -117,13 +125,14 @@ def main() raises:
         _embed(String(args[2]))
     elif cmd == "index":
         var data_dir = String(args[2]) if len(args) >= 3 else _default_dir()
-        build_index(data_dir, _local_url())
+        build_index(data_dir, _embed_url())
     elif cmd == "search":
         if len(args) < 3:
             print("usage: dacular search \"<query>\" [k]")
             return
         var k = Int(String(args[3])) if len(args) >= 4 else 8
         _search(String(args[2]), k)
+
     else:
         print("usage: dacular <manifest|read|embed|index|search> ...")
 
@@ -131,7 +140,7 @@ def main() raises:
 def _embed(text: String) raises:
     """Smoke-test the embedding client. Requires the inference-server embeddings
     endpoint to be live + serving the embedding model."""
-    var url = _local_url()
+    var url = _embed_url()
     print("POST " + url + "/embeddings")
     try:
         var vec = embed(url, text)
@@ -148,7 +157,7 @@ def _embed(text: String) raises:
 
 def _search(query: String, k: Int) raises:
     """Smoke-test semantic search. Requires an existing index + live embeddings."""
-    var hits = search(query, k, _local_url())
+    var hits = search(query, k, _embed_url())
     print(String(len(hits)) + " hit(s) for: " + query)
     for i in range(len(hits)):
         ref h = hits[i]

@@ -18,10 +18,16 @@ headgate-system.md exactly:
   print_answer(s)                  -> None
 
 The vault dir + the local model URLs come from the environment so the generated
-program needs no configuration:
+program needs no configuration. Two distinct endpoints, because one
+inference-server instance serves exactly ONE model — a CHAT model (for
+ask_local) and an EMBEDDING model (for search) cannot share a port:
   DACULAR_VAULT      (default ~/dacular)
-  DACULAR_LOCAL_URL  (default http://127.0.0.1:8000/v1)  — chat + embeddings
+  DACULAR_LOCAL_URL  (default http://127.0.0.1:8000/v1)  — CHAT (ask_local)
+  DACULAR_EMBED_URL  (default http://127.0.0.1:8001/v1)  — EMBEDDINGS (search)
   DACULAR_LOCAL_MODEL(default "local")                   — chat model name
+
+Both URLs are 127.0.0.1: the only network the run sandbox permits is loopback,
+so nothing the generated program does can leave the machine.
 """
 
 from std.os import getenv
@@ -57,7 +63,16 @@ def _vault_dir() raises -> String:
 
 
 def _local_url() raises -> String:
+    """CHAT endpoint — ask_local talks to this. Default :8000."""
     return getenv("DACULAR_LOCAL_URL", "http://127.0.0.1:8000/v1")
+
+
+def _embed_url() raises -> String:
+    """EMBEDDINGS endpoint — search() embeds the query here. Default :8001 (a
+    second inference-server serving the embedding model; one server == one
+    model). Falls back to DACULAR_LOCAL_URL only if explicitly unset AND the
+    chat server also serves embeddings."""
+    return getenv("DACULAR_EMBED_URL", "http://127.0.0.1:8001/v1")
 
 
 def _local_model() raises -> String:
@@ -89,8 +104,10 @@ def manifest() raises -> List[VaultFile]:
 
 def search(query: String, k: Int) raises -> List[Chunk]:
     """Semantic search across the indexed vault -> ranked chunks (`.file_alias`,
-    `.text`, `.score`). Embeds the query on-device and k-NNs the LanceDB store."""
-    return index.search(query, k, _local_url())
+    `.text`, `.score`). Embeds the query on-device (the EMBED endpoint) and
+    k-NNs the LanceDB store. Uses _embed_url(), NOT the chat url — search needs
+    the embedding model."""
+    return index.search(query, k, _embed_url())
 
 
 def csv_rows(file_alias: String) raises -> List[List[String]]:

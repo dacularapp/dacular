@@ -56,6 +56,11 @@ jobs:
       - name: Rust toolchain
         run: cargo --version
 
+      # LanceDB's lance-encoding crate builds protobufs at compile time, so it
+      # needs `protoc` on PATH (present on dev machines, not the bare runner).
+      - name: Install protobuf (protoc)
+        run: brew install protobuf
+
       # Builds every FFI shim (zlib + flare http/tls + the LanceDB cdylib — the
       # last pulls lancedb+arrow on first build, so it's slow) then compiles dacular.
       - name: Build dacular
