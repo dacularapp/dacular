@@ -2,14 +2,15 @@ name: dacular zip
 
 # Builds dacular.zip — the dacular source bundle the Millrace app downloads, then
 # `mojo build`s on-device. See scripts/package_dacular.sh. Mirrors headgate's
-# headgate-zip.yml, but dacular has no FFI/sibling-repo deps yet, so there's just
-# one checkout and no flare shims / node build.
+# headgate-zip.yml; dacular now links the full toolbox (flare HTTP, the LanceDB
+# Rust shim, pdftotext + zlib), so the siblings are checked out and their FFI
+# shims built before the compile-check.
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
-    paths: ["scripts/package_dacular.sh", ".github/workflows/dacular-zip.yml"]
+    paths: ["scripts/package_dacular.sh", ".github/workflows/dacular-zip.yml", "pixi.toml"]
   workflow_dispatch:
 
 permissions:
@@ -19,18 +20,51 @@ jobs:
   zip:
     runs-on: macos-14
     steps:
+      # Lay the repos out as siblings, matching the dev layout the package script
+      # and the `-I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src
+      # -I ../zlib.mojo/src` build assume.
       - uses: actions/checkout@v6
+        with:
+          path: dacular
+      - uses: actions/checkout@v6
+        with:
+          repository: millrace/flare
+          path: flare
+      - uses: actions/checkout@v6
+        with:
+          repository: millrace/json
+          path: json
+      - uses: actions/checkout@v6
+        with:
+          repository: millrace/lancedb.mojo
+          path: lancedb.mojo
+      - uses: actions/checkout@v6
+        with:
+          repository: millrace/pdftotext.mojo
+          path: pdftotext.mojo
+      - uses: actions/checkout@v6
+        with:
+          repository: millrace/zlib.mojo
+          path: zlib.mojo
 
       - uses: prefix-dev/setup-pixi@v0.9.6
         with:
-          manifest-path: pixi.toml
+          manifest-path: dacular/pixi.toml
 
-      # Compile-check the bundle before shipping it.
+      # cargo is preinstalled on macos-14 runners; the LanceDB shim (Rust cdylib)
+      # build needs it. Print the version so failures are diagnosable.
+      - name: Rust toolchain
+        run: cargo --version
+
+      # Builds every FFI shim (zlib + flare http/tls + the LanceDB cdylib — the
+      # last pulls lancedb+arrow on first build, so it's slow) then compiles dacular.
       - name: Build dacular
+        working-directory: dacular
         run: pixi run build
 
       - name: Package dacular.zip
-        run: bash scripts/package_dacular.sh "$GITHUB_WORKSPACE/dacular.zip"
+        working-directory: dacular
+        run: pixi run bash scripts/package_dacular.sh "$GITHUB_WORKSPACE/dacular.zip"
 
       - uses: actions/upload-artifact@v7
         with:
