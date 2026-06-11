@@ -15,8 +15,8 @@ Layout (under ~/.config/dacular):
   chunks.tsv     — chunk_id <TAB> file_alias <TAB> escaped_text
 """
 
-from std.os import getenv, makedirs
-from std.os.path import exists
+from std.os import getenv, makedirs, remove, rmdir, listdir
+from std.os.path import exists, isfile
 
 from lancedb import Store
 from manifest import build_manifest, FileInfo
@@ -24,7 +24,8 @@ from readers import csv_rows, md_text, pdf_text
 from embed import embed, EMBED_DIM
 
 
-comptime CHUNK_SIZE = 512
+comptime CHUNK_SIZE = 512      # ~codepoints per chunk
+comptime CHUNK_OVERLAP = 64    # codepoints carried into the next chunk for context
 comptime TABLE = "chunks"
 
 
@@ -117,23 +118,78 @@ def _file_text(fi: FileInfo) raises -> String:
     return String("")
 
 
+def _codepoint_windows(s: String, size: Int) raises -> List[String]:
+    """Split `s` into windows of at most `size` codepoints (UTF-8-safe), so a
+    single over-long line/segment can't become one giant chunk."""
+    var out = List[String]()
+    var cur = String("")
+    var cnt = 0
+    for cp in s.codepoint_slices():
+        cur += String(cp)
+        cnt += 1
+        if cnt >= size:
+            out.append(cur^)
+            cur = String("")
+            cnt = 0
+    if cur.byte_length() > 0:
+        out.append(cur^)
+    return out^
+
+
+def _tail_codepoints(s: String, n: Int) raises -> String:
+    """The last `n` codepoints of `s` (for chunk overlap)."""
+    if n <= 0:
+        return String("")
+    var cps = List[String]()
+    for cp in s.codepoint_slices():
+        cps.append(String(cp))
+    var start = len(cps) - n
+    if start < 0:
+        start = 0
+    var out = String("")
+    for i in range(start, len(cps)):
+        out += cps[i]
+    return out^
+
+
 def _chunk_text(text: String) raises -> List[String]:
-    """Split `text` into ~CHUNK_SIZE-byte chunks on line boundaries (so we don't
-    cut mid-line). A single over-long line becomes its own chunk."""
+    """Pack lines into ~CHUNK_SIZE-codepoint chunks on line boundaries; hard-split
+    any single segment longer than CHUNK_SIZE; carry CHUNK_OVERLAP codepoints of
+    the previous chunk into the next so context isn't lost at boundaries."""
     var chunks = List[String]()
     var lines = text.split("\n")
     var cur = String("")
-    for i in range(len(lines)):
-        var line = String(lines[i])
-        if cur.byte_length() > 0 and cur.byte_length() + line.byte_length() + 1 > CHUNK_SIZE:
-            chunks.append(cur^)
-            cur = String("")
-        if cur.byte_length() > 0:
-            cur += "\n"
-        cur += line
+    var cur_len = 0
+    for li in range(len(lines)):
+        var segs = _codepoint_windows(String(lines[li]), CHUNK_SIZE)
+        for si in range(len(segs)):
+            var seg = segs[si].copy()
+            var seg_len = seg.count_codepoints()
+            if cur_len > 0 and cur_len + seg_len + 1 > CHUNK_SIZE:
+                chunks.append(cur.copy())
+                cur = _tail_codepoints(cur, CHUNK_OVERLAP)
+                cur_len = cur.count_codepoints()
+            if cur_len > 0:
+                cur += "\n"
+                cur_len += 1
+            cur += seg
+            cur_len += seg_len
     if String(cur.strip()).byte_length() > 0:
         chunks.append(cur^)
     return chunks^
+
+
+def _rmtree(path: String) raises:
+    """Recursively delete `path` (file or directory). No-op if it doesn't exist."""
+    if not exists(path):
+        return
+    if isfile(path):
+        remove(path)
+        return
+    var entries = listdir(path)
+    for i in range(len(entries)):
+        _rmtree(path + "/" + String(entries[i]))
+    rmdir(path)
 
 
 # ── side-table persistence ────────────────────────────────────────────────────
@@ -179,6 +235,11 @@ def build_index(data_dir: String, base_url: String) raises:
     (e.g. http://127.0.0.1:8000/v1); a failed embed aborts with a clear error.
     """
     makedirs(_config_dir(), exist_ok=True)
+    # Clean rebuild: LanceDB add() APPENDS, so re-indexing without clearing would
+    # duplicate every chunk and collide ids with the freshly-reset side-table.
+    _rmtree(_db_uri())
+    if exists(_sidetable_path()):
+        remove(_sidetable_path())
     var infos = build_manifest(data_dir)
 
     var aliases = List[String]()
