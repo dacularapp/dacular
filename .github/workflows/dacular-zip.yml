@@ -61,6 +61,13 @@ jobs:
       - name: Install protobuf (protoc)
         run: brew install protobuf
 
+      # Cache the cargo registry + lancedb.mojo/ffi/target so the LanceDB shim
+      # (the slow ~8-min arrow/lance/datafusion build) only relinks on subsequent
+      # runs. Keyed on the shim's Cargo.lock by the action.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: lancedb.mojo/ffi
+
       # Builds every FFI shim (zlib + flare http/tls + the LanceDB cdylib — the
       # last pulls lancedb+arrow on first build, so it's slow) then compiles dacular.
       - name: Build dacular
