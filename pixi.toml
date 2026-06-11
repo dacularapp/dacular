@@ -34,8 +34,8 @@ ffi = "bash -c 'bash ../zlib.mojo/src/ffi/build.sh; source ../flare/flare/tls/ff
 
 # All the -I include paths dacular needs: flare/json (HTTP + JSON), the LanceDB
 # binding, and the pdftotext + zlib readers. Keep in sync with `build`.
-manifest = { cmd = "mkdir -p build && mojo build src/dacular.mojo -I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src -I ../zlib.mojo/src -o build/dacular && ./build/dacular manifest", depends-on = ["ffi"] }
-build = { cmd = "mkdir -p build && mojo build src/dacular.mojo -I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src -I ../zlib.mojo/src -o build/dacular", depends-on = ["ffi"] }
+manifest = { cmd = "mkdir -p build && mojo build src/dacular.mojo -I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src -I ../zlib.mojo/src -I ../csv.mojo/src -o build/dacular && ./build/dacular manifest", depends-on = ["ffi"] }
+build = { cmd = "mkdir -p build && mojo build src/dacular.mojo -I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src -I ../zlib.mojo/src -I ../csv.mojo/src -o build/dacular", depends-on = ["ffi"] }
 # Smoke-test the readers against the throwaway vault in .scratch/vault (csv, md,
 # and a real PDF). No network/model needed — exercises csv_rows/md_text/pdf_text.
 smoke-readers = { cmd = "./build/dacular manifest .scratch/vault && echo '---' && ./build/dacular read file_0 .scratch/vault && echo '---' && ./build/dacular read file_1 .scratch/vault && echo '---' && ./build/dacular read file_2 .scratch/vault", depends-on = ["build"] }
@@ -52,4 +52,4 @@ smoke-index = { cmd = "./build/dacular index .scratch/vault", depends-on = ["bui
 # Type-check the vault tool surface the way a headgate-generated program uses it:
 # `from vault import *` over -I src. Proves the `from vault import *` contract
 # compiles (manifest/search/csv_rows/pdf_text/md_text/ask_local/print_answer).
-build-vault = { cmd = "mkdir -p build && mojo build .scratch/vault_probe.mojo -I src -I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src -I ../zlib.mojo/src -o build/vault-probe", depends-on = ["ffi"] }
+build-vault = { cmd = "mkdir -p build && mojo build .scratch/vault_probe.mojo -I src -I ../flare -I ../json -I ../lancedb.mojo/src -I ../pdftotext.mojo/src -I ../zlib.mojo/src -I ../csv.mojo/src -o build/vault-probe", depends-on = ["ffi"] }

@@ -46,6 +46,10 @@ jobs:
         with:
           repository: millrace/zlib.mojo
           path: zlib.mojo
+      - uses: actions/checkout@v6
+        with:
+          repository: millrace/csv.mojo
+          path: csv.mojo
 
       - uses: prefix-dev/setup-pixi@v0.9.6
         with:
