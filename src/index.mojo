@@ -228,7 +228,13 @@ def search(query: String, k: Int, base_url: String) raises -> List[Chunk]:
     var aliases = sidetable[0].copy()
     var texts = sidetable[1].copy()
 
-    var qvec = embed(base_url, query)
+    # Qwen3-Embedding is instruction-tuned: QUERIES get an instruction prefix,
+    # documents (the indexed chunks) stay raw. This materially improves ranking.
+    var q_instructed = String(
+        "Instruct: Given a search query, retrieve relevant passages that answer"
+        " it.\nQuery: "
+    ) + query
+    var qvec = embed(base_url, q_instructed)
     var store = Store(_db_uri(), String(TABLE), EMBED_DIM)
     var result = store.search(qvec, k)
     var ids = result[0].copy()
