@@ -96,10 +96,12 @@ def _local_url() raises -> String:
 
 
 def _embed_url() raises -> String:
-    """EMBEDDINGS endpoint (default :8001). `index` + `search` + `embed` use
-    this — they need the embedding model, which a separate inference-server
-    serves on its own port. Mirrors vault._embed_url()."""
-    return getenv("DACULAR_EMBED_URL", "http://127.0.0.1:8001/v1")
+    """EMBEDDINGS endpoint (default :8000, same base as chat). `index` + `search`
+    + `embed` use this — one inference-server process now serves both the chat
+    model and the embedding model on a single port (/v1/embeddings routes to the
+    secondary Qwen3-Embedding model). Override DACULAR_EMBED_URL to point at a
+    separate embedding server. Mirrors vault._embed_url()."""
+    return getenv("DACULAR_EMBED_URL", "http://127.0.0.1:8000/v1")
 
 
 def main() raises:

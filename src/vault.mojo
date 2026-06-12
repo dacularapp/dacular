@@ -18,12 +18,13 @@ headgate-system.md exactly:
   print_answer(s)                  -> None
 
 The vault dir + the local model URLs come from the environment so the generated
-program needs no configuration. Two distinct endpoints, because one
-inference-server instance serves exactly ONE model — a CHAT model (for
-ask_local) and an EMBEDDING model (for search) cannot share a port:
+program needs no configuration. One inference-server process now serves BOTH a
+chat model and the embedding model on a single port (its /v1/embeddings routes
+to a secondary Qwen3-Embedding model), so chat + embeddings default to the same
+base. The URLs are still separate env knobs in case you run two instances:
   DACULAR_VAULT      (default ~/dacular)
   DACULAR_LOCAL_URL  (default http://127.0.0.1:8000/v1)  — CHAT (ask_local)
-  DACULAR_EMBED_URL  (default http://127.0.0.1:8001/v1)  — EMBEDDINGS (search)
+  DACULAR_EMBED_URL  (default http://127.0.0.1:8000/v1)  — EMBEDDINGS (search)
   DACULAR_LOCAL_MODEL(default "local")                   — chat model name
 
 Both URLs are 127.0.0.1: the only network the run sandbox permits is loopback,
@@ -68,11 +69,12 @@ def _local_url() raises -> String:
 
 
 def _embed_url() raises -> String:
-    """EMBEDDINGS endpoint — search() embeds the query here. Default :8001 (a
-    second inference-server serving the embedding model; one server == one
-    model). Falls back to DACULAR_LOCAL_URL only if explicitly unset AND the
-    chat server also serves embeddings."""
-    return getenv("DACULAR_EMBED_URL", "http://127.0.0.1:8001/v1")
+    """EMBEDDINGS endpoint — search() embeds the query here. Defaults to the SAME
+    base as the chat endpoint (:8000): one inference-server process now serves
+    both a chat model and the embedding model on one port (its /v1/embeddings
+    routes to the secondary Qwen3-Embedding model). Override with DACULAR_EMBED_URL
+    to point at a separate embedding server if you still run two instances."""
+    return getenv("DACULAR_EMBED_URL", "http://127.0.0.1:8000/v1")
 
 
 def _local_model() raises -> String:
