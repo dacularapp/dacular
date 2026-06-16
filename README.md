@@ -93,7 +93,7 @@ dacular search "<query>" [k]              # semantic search over the index*
 
 The index lives under `~/.config/dacular/` (`index.db` + `chunks.tsv`
 side-table). Local model URLs are configurable via `DACULAR_LOCAL_URL` (default
-`http://127.0.0.1:8000/v1`) and `DACULAR_VAULT` (default `~/dacular`).
+`http://127.0.0.1:8000/v1`) and `DACULAR_VAULT` (default `~/.config/dacular/vault`).
 
 There are also `pixi run smoke-readers` / `smoke-embed` / `smoke-index` /
 `build-vault` tasks that exercise each layer against a throwaway vault.

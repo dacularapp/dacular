@@ -7,7 +7,7 @@ on the trusted side (`FileInfo.path`) and is NEVER part of what reaches the
 frontier model; only alias/kind/size/columns are.
 """
 
-from std.os import listdir
+from std.os import listdir, makedirs
 from std.os.path import isfile, getsize
 
 
@@ -80,7 +80,9 @@ def _sort_names(mut names: List[String]):
 def build_manifest(data_dir: String) raises -> List[FileInfo]:
     """Scan `data_dir` (top level) and build the aliased manifest. Files that
     aren't CSV/PDF/Markdown are skipped; aliases are assigned in sorted-name
-    order for stability."""
+    order for stability. A missing vault dir is created (empty) rather than an
+    error — a clean machine has no vault yet."""
+    makedirs(data_dir, exist_ok=True)
     var raw = listdir(data_dir)
     var names = List[String]()
     for i in range(len(raw)):
